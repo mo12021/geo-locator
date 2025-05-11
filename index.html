@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>موقعي الآن</title>
+  <style>
+    body { font-family: Arial; text-align: center; direction: rtl; }
+    #map { height: 400px; width: 100%; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>موقعك الجغرافي الآن</h1>
+  <button onclick="getLocation()">اعرض موقعي</button>
+  <div id="info">بانتظار تحديد الموقع...</div>
+  <div id="map"></div>
+
+  <!-- مكتبة Leaflet لعرض الخريطة -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- مكتبة لتحويل الإحداثيات إلى MGRS -->
+  <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.min.js"></script>
+
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError);
+      } else {
+        document.getElementById("info").innerText = "المتصفح لا يدعم تحديد الموقع.";
+      }
+    }
+
+    function showPosition(position) {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      // عرض الإحداثيات العادية
+      document.getElementById("info").innerHTML = `
+        <p>خط العرض: ${lat.toFixed(6)}</p>
+        <p>خط الطول: ${lon.toFixed(6)}</p>
+      `;
+
+      // تحويل إلى إحداثيات MGRS
+      const mgrsCoord = mgrs.forward([lon, lat]);
+      document.getElementById("info").innerHTML += `
+        <p><strong>إحداثيات MGRS:</strong> ${mgrsCoord}</p>
+      `;
+
+      // إنشاء الخريطة
+      const map = L.map('map').setView([lat, lon], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      L.marker([lat, lon]).addTo(map).bindPopup('أنت هنا').openPopup();
+
+      // جلب معلومات الموقع
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar`)
+        .then(response => response.json())
+        .then(data => {
+          const address = data.address;
+          const details = `
+            <p>الدولة: ${address.country || "غير متوفرة"}</p>
+            <p>المدينة: ${address.city || address.town || address.village || "غير متوفرة"}</p>
+            <p>الشارع: ${address.road || "غير معروف"}</p>
+            <p>أقرب نقطة دالة: ${address.attraction || address.building || "غير متوفرة"}</p>
+          `;
+          document.getElementById("info").innerHTML += details;
+        });
+    }
+
+    function showError(error) {
+      document.getElementById("info").innerText = "حدث خطأ أثناء تحديد الموقع.";
+    }
+  </script>
+</body>
+</html>
