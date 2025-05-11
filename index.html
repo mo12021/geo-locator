@@ -3,23 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <title>موقعي الآن</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial; text-align: center; direction: rtl; }
-    #map { height: 400px; width: 100%; margin-top: 10px; }
+    body { font-family: Tahoma, sans-serif; direction: rtl; text-align: center; padding: 20px; }
+    #map { height: 400px; width: 100%; margin-top: 15px; border: 2px solid #ccc; border-radius: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    #info { margin-top: 15px; font-size: 16px; }
   </style>
-</head>
-<body>
-  <h1>موقعك الجغرافي الآن</h1>
-  <button onclick="getLocation()">اعرض موقعي</button>
-  <div id="info">بانتظار تحديد الموقع...</div>
-  <div id="map"></div>
 
-  <!-- مكتبة Leaflet لعرض الخريطة -->
+  <!-- Leaflet map library -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- مكتبة لتحويل الإحداثيات إلى MGRS -->
+  <!-- MGRS library -->
   <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.min.js"></script>
+</head>
+<body>
+
+  <h1>اعرض موقعي الآن</h1>
+  <button onclick="getLocation()">اعرض موقعي</button>
+  <div id="info">بانتظار تحديد الموقع...</div>
+  <div id="map"></div>
 
   <script>
     function getLocation() {
@@ -34,15 +38,11 @@
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
 
-      // عرض الإحداثيات العادية
-      document.getElementById("info").innerHTML = `
-        <p>خط العرض: ${lat.toFixed(6)}</p>
-        <p>خط الطول: ${lon.toFixed(6)}</p>
-      `;
-
-      // تحويل إلى إحداثيات MGRS
       const mgrsCoord = mgrs.forward([lon, lat]);
-      document.getElementById("info").innerHTML += `
+
+      document.getElementById("info").innerHTML = `
+        <p><strong>خط العرض:</strong> ${lat.toFixed(6)}</p>
+        <p><strong>خط الطول:</strong> ${lon.toFixed(6)}</p>
         <p><strong>إحداثيات MGRS:</strong> ${mgrsCoord}</p>
       `;
 
@@ -53,24 +53,28 @@
       }).addTo(map);
       L.marker([lat, lon]).addTo(map).bindPopup('أنت هنا').openPopup();
 
-      // جلب معلومات الموقع
+      // محاولة جلب تفاصيل الموقع (إذا نجحت)
       fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar`)
         .then(response => response.json())
         .then(data => {
-          const address = data.address;
+          const address = data.address || {};
           const details = `
-            <p>الدولة: ${address.country || "غير متوفرة"}</p>
-            <p>المدينة: ${address.city || address.town || address.village || "غير متوفرة"}</p>
-            <p>الشارع: ${address.road || "غير معروف"}</p>
-            <p>أقرب نقطة دالة: ${address.attraction || address.building || "غير متوفرة"}</p>
+            <p><strong>الدولة:</strong> ${address.country || "غير معروفة"}</p>
+            <p><strong>المدينة:</strong> ${address.city || address.town || address.village || "غير معروفة"}</p>
+            <p><strong>الشارع:</strong> ${address.road || "غير معروف"}</p>
+            <p><strong>أقرب نقطة دالة:</strong> ${address.building || address.attraction || "غير متوفرة"}</p>
           `;
           document.getElementById("info").innerHTML += details;
+        })
+        .catch(error => {
+          document.getElementById("info").innerHTML += `<p>⚠️ لم نتمكن من جلب تفاصيل الموقع.</p>`;
         });
     }
 
     function showError(error) {
-      document.getElementById("info").innerText = "حدث خطأ أثناء تحديد الموقع.";
+      document.getElementById("info").innerText = "حدث خطأ أثناء محاولة تحديد الموقع.";
     }
   </script>
+
 </body>
 </html>
